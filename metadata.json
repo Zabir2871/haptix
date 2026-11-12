@@ -1,0 +1,6 @@
+{
+  "name": "Haptix Tactile Telemetry & Haptic Synthesizer",
+  "description": "Precision WebGamepad, WebHID DualSense/Xbox Impulse Trigger, and multi-actuator haptic synthesizer with real-time XY vector control, pattern sequencing, and full D-Pad navigation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
