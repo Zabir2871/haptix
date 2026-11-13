@@ -174,6 +174,51 @@ export function scaleAndClampMagnitude(raw: number, masterStrength: number): num
 }
 
 /**
+ * Computes Left (Strong) and Right (Weak) motor gain multipliers from a pan balance in [-1, 1].
+ * -1.0 = Full Left (Strong 100%, Weak 0%)
+ *  0.0 = Center (Strong 100%, Weak 100%)
+ * +1.0 = Full Right (Strong 0%, Weak 100%)
+ */
+export function computeLRBalanceMultipliers(balance: number): {
+  leftMultiplier: number;
+  rightMultiplier: number;
+} {
+  if (Number.isNaN(balance)) {
+    return { leftMultiplier: 1, rightMultiplier: 1 };
+  }
+  const clamped = Math.max(-1, Math.min(1, balance));
+  if (clamped < 0) {
+    return {
+      leftMultiplier: 1,
+      rightMultiplier: Math.max(0, Math.min(1, 1 + clamped)),
+    };
+  }
+  if (clamped > 0) {
+    return {
+      leftMultiplier: Math.max(0, Math.min(1, 1 - clamped)),
+      rightMultiplier: 1,
+    };
+  }
+  return { leftMultiplier: 1, rightMultiplier: 1 };
+}
+
+/**
+ * Formats an L/R balance value (-1..1) into a readable hardware telemetry label.
+ */
+export function formatLRBalanceLabel(balance: number): string {
+  if (Number.isNaN(balance) || Math.abs(balance) < 0.02) {
+    return 'CENTER (100/100)';
+  }
+  const clamped = Math.max(-1, Math.min(1, balance));
+  if (clamped <= -0.99) return '100% L (STRONG)';
+  if (clamped >= 0.99) return '100% R (WEAK)';
+  if (clamped < 0) {
+    return `L +${Math.round(Math.abs(clamped) * 100)}%`;
+  }
+  return `R +${Math.round(clamped * 100)}%`;
+}
+
+/**
  * Samples a pattern function over a time window [0, durationSec] for waveform rendering.
  */
 export function samplePatternCurve(

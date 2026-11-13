@@ -1,4 +1,5 @@
 import {
+  computeLRBalanceMultipliers,
   corePatterns,
   EnvelopePatch,
   evaluateEnvelopeSynth,
@@ -14,6 +15,7 @@ import {
 export interface HapticsState {
   masterStrength: number;
   patternTempo: number;
+  lrBalance: number; // -1.0 (Full Left / Strong) .. 0.0 (Center) .. +1.0 (Full Right / Weak)
   routing: {
     main: boolean;
     triggers: boolean;
@@ -32,6 +34,7 @@ export interface HapticsState {
 export const state: HapticsState = {
   masterStrength: 1.0,
   patternTempo: 1.0,
+  lrBalance: 0.0,
   routing: {
     main: true,
     triggers: false,
@@ -190,8 +193,12 @@ export class VibrationEngine {
     this.rawStrong = Math.max(0, Math.min(1, strong));
     this.rawWeak = Math.max(0, Math.min(1, weak));
 
-    strong = Math.max(0, Math.min(1, strong * state.masterStrength));
-    weak = Math.max(0, Math.min(1, weak * state.masterStrength));
+    const { leftMultiplier, rightMultiplier } = computeLRBalanceMultipliers(
+      state.lrBalance
+    );
+
+    strong = Math.max(0, Math.min(1, strong * state.masterStrength * leftMultiplier));
+    weak = Math.max(0, Math.min(1, weak * state.masterStrength * rightMultiplier));
 
     this.currentStrong = strong;
     this.currentWeak = weak;

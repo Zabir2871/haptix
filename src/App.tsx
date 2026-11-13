@@ -49,6 +49,7 @@ export default function App() {
   const [activeSection, setActiveSection] = useState<WorkspaceSection>('patterns');
   const [masterStrength, setMasterStrength] = useState(state.masterStrength);
   const [patternTempo, setPatternTempo] = useState(state.patternTempo);
+  const [lrBalance, setLrBalance] = useState(state.lrBalance);
   const [routing, setRouting] = useState({ ...state.routing });
   const [highlightedIndex, setHighlightedIndex] = useState(state.selectedPatternIndex);
   const [manualStrong, setManualStrong] = useState(0);
@@ -219,6 +220,22 @@ export default function App() {
     setPatternTempo(clamped);
   };
 
+  const handleUpdateBalance = (val: number) => {
+    const clamped = Math.max(-1.0, Math.min(1.0, val));
+    state.lrBalance = clamped;
+    setLrBalance(clamped);
+    // If currently in manual or XY pad static state, re-dispatch so balance updates live
+    if (
+      engine.activeMode === 'manual' ||
+      engine.activeMode === 'xy-pad' ||
+      engine.activeMode === null
+    ) {
+      if (engine.rawStrong > 0 || engine.rawWeak > 0) {
+        engine.dispatchVibration(engine.rawStrong, engine.rawWeak);
+      }
+    }
+  };
+
   const handleUpdateRouting = (key: keyof typeof state.routing, val: boolean) => {
     state.routing[key] = val;
     setRouting({ ...state.routing });
@@ -383,6 +400,7 @@ export default function App() {
           telemetry={telemetry}
           masterStrength={masterStrength}
           patternTempo={patternTempo}
+          lrBalance={lrBalance}
           timerText={timerText}
           audioSynthEnabled={routing.audioSynth}
           onToggleAudioSynth={() =>
@@ -436,6 +454,7 @@ export default function App() {
               routing={routing}
               masterStrength={masterStrength}
               patternTempo={patternTempo}
+              lrBalance={lrBalance}
               activeTimerMins={activeTimerMins}
               timerText={timerText}
               manualStrong={manualStrong}
@@ -443,6 +462,7 @@ export default function App() {
               onUpdateRouting={handleUpdateRouting}
               onUpdateStrength={handleUpdateStrength}
               onUpdateTempo={handleUpdateTempo}
+              onUpdateBalance={handleUpdateBalance}
               onStartTimer={handleStartTimer}
               onClearTimer={handleClearTimer}
               onManualAdjust={handleManualAdjust}

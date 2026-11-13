@@ -12,11 +12,16 @@ import {
   XCircle,
 } from 'lucide-react';
 import { engine, HapticsState, state } from '../engine/hapticsEngine';
+import {
+  computeLRBalanceMultipliers,
+  formatLRBalanceLabel,
+} from '../engine/hapticsLogic';
 
 interface RoutingAndHardwarePanelProps {
   routing: HapticsState['routing'];
   masterStrength: number;
   patternTempo: number;
+  lrBalance: number;
   activeTimerMins: number | null;
   timerText: string | null;
   manualStrong: number;
@@ -24,6 +29,7 @@ interface RoutingAndHardwarePanelProps {
   onUpdateRouting: (key: keyof HapticsState['routing'], val: boolean) => void;
   onUpdateStrength: (val: number) => void;
   onUpdateTempo: (val: number) => void;
+  onUpdateBalance: (val: number) => void;
   onStartTimer: (mins: number) => void;
   onClearTimer: () => void;
   onManualAdjust: (strongDelta: number, weakDelta: number) => void;
@@ -33,6 +39,7 @@ export const RoutingAndHardwarePanel: React.FC<RoutingAndHardwarePanelProps> = (
   routing,
   masterStrength,
   patternTempo,
+  lrBalance,
   activeTimerMins,
   timerText,
   manualStrong,
@@ -40,6 +47,7 @@ export const RoutingAndHardwarePanel: React.FC<RoutingAndHardwarePanelProps> = (
   onUpdateRouting,
   onUpdateStrength,
   onUpdateTempo,
+  onUpdateBalance,
   onStartTimer,
   onClearTimer,
   onManualAdjust,
@@ -48,6 +56,9 @@ export const RoutingAndHardwarePanel: React.FC<RoutingAndHardwarePanelProps> = (
   const [tapBpmReadout, setTapBpmReadout] = useState<number | null>(null);
   const phoneSupported =
     typeof navigator !== 'undefined' && 'vibrate' in navigator;
+
+  const { leftMultiplier, rightMultiplier } =
+    computeLRBalanceMultipliers(lrBalance);
 
   const handleTapTempo = () => {
     const now = performance.now();
@@ -78,7 +89,7 @@ export const RoutingAndHardwarePanel: React.FC<RoutingAndHardwarePanelProps> = (
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
             <Sliders className="w-4 h-4 text-[#FF5500]" />
-            <span>Master Gain & Tempo</span>
+            <span>Master Gain, L/R Balance & Tempo</span>
           </h2>
           <button
             type="button"
@@ -115,7 +126,7 @@ export const RoutingAndHardwarePanel: React.FC<RoutingAndHardwarePanelProps> = (
               max={1}
               step={0.01}
               value={masterStrength}
-              onChange={(e) => onUpdateStrength( parseFloat(e.target.value) )}
+              onChange={(e) => onUpdateStrength(parseFloat(e.target.value))}
               className="tactile-fader"
             />
             <div className="grid grid-cols-4 gap-1.5 mt-1">
@@ -136,8 +147,80 @@ export const RoutingAndHardwarePanel: React.FC<RoutingAndHardwarePanelProps> = (
             </div>
           </div>
 
+          {/* L/R Motor Balancer Crossfader */}
+          <div className="pt-2 border-t border-slate-200/70 dark:border-[#222632]">
+            <div className="flex items-center justify-between mb-1">
+              <label
+                htmlFor="slider-balance"
+                className="text-xs font-medium text-slate-600 dark:text-slate-300"
+              >
+                L/R Motor Balancer
+              </label>
+              <span
+                id="balance-val"
+                className="text-xs font-mono font-bold text-slate-900 dark:text-white tabular-nums"
+              >
+                {formatLRBalanceLabel(lrBalance)}
+              </span>
+            </div>
+
+            {/* Dual-Channel Gain Ratio Preview Bar */}
+            <div className="flex items-center justify-between text-[10px] font-mono mb-1.5">
+              <span className="text-[#FFB800]">
+                L STRONG: {Math.round(leftMultiplier * 100)}%
+              </span>
+              <span className="text-[#00E5FF]">
+                R WEAK: {Math.round(rightMultiplier * 100)}%
+              </span>
+            </div>
+
+            <div className="relative">
+              <input
+                id="slider-balance"
+                type="range"
+                min={-1}
+                max={1}
+                step={0.01}
+                value={lrBalance}
+                aria-label="L/R Motor Balancer"
+                onChange={(e) => onUpdateBalance(parseFloat(e.target.value))}
+                className="tactile-fader"
+              />
+            </div>
+
+            <div className="grid grid-cols-5 gap-1.5 mt-1">
+              {[
+                { label: '100% L', val: -1.0 },
+                { label: 'L 50%', val: -0.5 },
+                { label: 'Center', val: 0.0 },
+                { label: 'R 50%', val: 0.5 },
+                { label: '100% R', val: 1.0 },
+              ].map((pan) => {
+                const isSelected = Math.abs(lrBalance - pan.val) < 0.03;
+                return (
+                  <button
+                    key={pan.label}
+                    type="button"
+                    onClick={() => onUpdateBalance(pan.val)}
+                    className={`min-h-[32px] rounded-lg text-[11px] font-mono font-semibold border transition-colors cursor-pointer whitespace-nowrap ${
+                      isSelected
+                        ? pan.val < 0
+                          ? 'bg-[#FFB800]/15 border-[#FFB800] text-[#FFB800]'
+                          : pan.val > 0
+                          ? 'bg-[#00E5FF]/15 border-[#00E5FF] text-[#00E5FF]'
+                          : 'bg-[#FF5500]/15 border-[#FF5500] text-[#FF5500]'
+                        : 'bg-slate-50 dark:bg-[#0D0F14] border-slate-200 dark:border-[#222632] text-slate-500 dark:text-slate-400'
+                    }`}
+                  >
+                    {pan.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Pattern Tempo */}
-          <div>
+          <div className="pt-2 border-t border-slate-200/70 dark:border-[#222632]">
             <div className="flex items-center justify-between mb-1">
               <label
                 htmlFor="slider-tempo"

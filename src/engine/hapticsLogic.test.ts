@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import {
   corePatterns,
   scaleAndClampMagnitude,
+  computeLRBalanceMultipliers,
+  formatLRBalanceLabel,
   samplePatternCurve,
   evaluateSequencerAtTime,
   evaluateEnvelopeSynth,
@@ -48,6 +50,34 @@ test('scaleAndClampMagnitude properly scales and clamps to [0, 1]', () => {
   assert.equal(scaleAndClampMagnitude(1.5, 1.0), 1.0);
   assert.equal(scaleAndClampMagnitude(-0.3, 1.0), 0.0);
   assert.equal(scaleAndClampMagnitude(Number.NaN, 1.0), 0.0);
+});
+
+test('computeLRBalanceMultipliers pans accurately between Left (Strong) and Right (Weak)', () => {
+  assert.deepEqual(computeLRBalanceMultipliers(0), {
+    leftMultiplier: 1,
+    rightMultiplier: 1,
+  });
+  assert.deepEqual(computeLRBalanceMultipliers(-1), {
+    leftMultiplier: 1,
+    rightMultiplier: 0,
+  });
+  assert.deepEqual(computeLRBalanceMultipliers(1), {
+    leftMultiplier: 0,
+    rightMultiplier: 1,
+  });
+  const halfLeft = computeLRBalanceMultipliers(-0.5);
+  assert.equal(halfLeft.leftMultiplier, 1);
+  assert.ok(Math.abs(halfLeft.rightMultiplier - 0.5) < 1e-6);
+
+  const halfRight = computeLRBalanceMultipliers(0.5);
+  assert.ok(Math.abs(halfRight.leftMultiplier - 0.5) < 1e-6);
+  assert.equal(halfRight.rightMultiplier, 1);
+
+  assert.equal(formatLRBalanceLabel(0), 'CENTER (100/100)');
+  assert.equal(formatLRBalanceLabel(-1), '100% L (STRONG)');
+  assert.equal(formatLRBalanceLabel(1), '100% R (WEAK)');
+  assert.equal(formatLRBalanceLabel(-0.5), 'L +50%');
+  assert.equal(formatLRBalanceLabel(0.4), 'R +40%');
 });
 
 test('samplePatternCurve returns deterministic sample count and bounded points', () => {

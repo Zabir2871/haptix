@@ -1,12 +1,16 @@
 import React, { useEffect, useRef } from 'react';
 import { OctagonX, Volume2, VolumeX, Timer, Gamepad2, Smartphone } from 'lucide-react';
 import { TelemetryFrame } from '../engine/hapticsEngine';
-import { computeTelemetryMetrics } from '../engine/hapticsLogic';
+import {
+  computeTelemetryMetrics,
+  formatLRBalanceLabel,
+} from '../engine/hapticsLogic';
 
 interface TactileVisualizerDeckProps {
   telemetry: TelemetryFrame;
   masterStrength: number;
   patternTempo: number;
+  lrBalance: number;
   timerText: string | null;
   audioSynthEnabled: boolean;
   onToggleAudioSynth: () => void;
@@ -17,6 +21,7 @@ export const TactileVisualizerDeck: React.FC<TactileVisualizerDeckProps> = ({
   telemetry,
   masterStrength,
   patternTempo,
+  lrBalance,
   timerText,
   audioSynthEnabled,
   onToggleAudioSynth,
@@ -285,8 +290,8 @@ export const TactileVisualizerDeck: React.FC<TactileVisualizerDeckProps> = ({
 
           <div className="flex items-center justify-between text-[10px] font-mono text-slate-500 mt-1">
             <span>GAIN: {Math.round(masterStrength * 100)}%</span>
+            <span>BAL: {formatLRBalanceLabel(lrBalance)}</span>
             <span>60 HZ POLLING</span>
-            <span>DUAL-RUMBLE</span>
           </div>
         </div>
 
