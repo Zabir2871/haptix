@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Haptics Pro - Advanced Vibration Controller</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- Link to PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    <style>
+        body {
+            background-color: #0f172a;
+            color: #f8fafc;
+            overscroll-behavior: none;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 1rem;
+        }
+        .pattern-btn {
+            transition: all 0.2s ease;
+        }
+        .pattern-btn:hover {
+            transform: translateY(-2px);
+            background: rgba(99, 102, 241, 0.2);
+        }
+        .pattern-btn.active {
+            background: rgba(99, 102, 241, 0.5);
+            border-color: #818cf8;
+            box-shadow: 0 0 15px rgba(99, 102, 241, 0.4);
+        }
+        .pattern-btn.highlighted {
+            border-color: #f472b6; /* Pink border for gamepad selection */
+            box-shadow: 0 0 10px rgba(244, 114, 182, 0.4);
+        }
+        canvas.waveform {
+            width: 100%;
+            height: 40px;
+            border-radius: 0.5rem;
+            background: rgba(0,0,0,0.2);
+            margin-bottom: 0.5rem;
+        }
+        #touch-pad {
+            touch-action: none;
+        }
+        
+        /* Range Sliders */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 24px;
+            width: 24px;
+            border-radius: 50%;
+            background: #818cf8;
+            cursor: pointer;
+            margin-top: -8px;
+            box-shadow: 0 0 10px rgba(129, 140, 248, 0.5);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 8px;
+            cursor: pointer;
+            background: #334155;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8 flex flex-col items-center">
+
+    <div class="w-full max-w-4xl">
+        <!-- Header & Status -->
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 mb-2 flex justify-center items-center gap-3">
+                <i class="ph-fill ph-game-controller"></i> Haptics Pro
+            </h1>
+            <p class="text-gray-400">Advanced Multi-Motor Controller API</p>
+            
+            <div id="status-badge" class="inline-flex items-center gap-2 mt-4 px-4 py-2 rounded-full bg-slate-800 text-sm font-medium border border-slate-700 transition-colors">
+                <div class="w-3 h-3 rounded-full bg-red-500 animate-pulse" id="status-dot"></div>
+                <span id="status-text">Press any button on controller</span>
+            </div>
+        </div>
+
+        <!-- Master Terminate Button -->
+        <button id="btn-terminate" class="w-full mb-8 py-4 bg-red-500/20 hover:bg-red-500/40 border border-red-500/50 text-red-200 rounded-xl font-bold text-xl flex justify-center items-center gap-2 transition-all active:scale-95 shadow-[0_0_20px_rgba(239,68,68,0.2)]">
+            <i class="ph-bold ph-stop-circle text-2xl"></i> EMERGENCY STOP
+        </button>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            <!-- Left Column -->
+            <div class="space-y-6">
+                
+                <!-- Target Routing -->
+                <div class="glass-panel p-6">
+                    <h3 class="text-xl font-bold mb-4 flex items-center gap-2 text-indigo-300">
+                        <i class="ph-bold ph-cpu"></i> Target Routing
+                    </h3>
+                    <div class="grid grid-cols-2 gap-3">
+                        <label class="flex items-center gap-3 p-3 bg-slate-800/50 rounded-lg cursor-pointer border border-slate-700 hover:border-indigo-500 transition-colors">
+                            <input type="checkbox" id="target-main" checked class="w-5 h-5 accent-indigo-500">
+                            <span class="text-sm font-medium">Main Grip Motors</span>
+                        </label>
+                        <label class="flex items-center gap-3 p-3 bg-slate-800/50 rounded-lg cursor-pointer border border-slate-700 hover:border-indigo-500 transition-colors">
+                            <input type="checkbox" id="target-triggers" class="w-5 h-5 accent-indigo-500">
+                            <span class="text-sm font-medium">Trigger Motors (Xbox)</span>
+                        </label>
+                        <label class="flex items-center gap-3 p-3 bg-slate-800/50 rounded-lg cursor-pointer border border-slate-700 hover:border-indigo-500 transition-colors">
+                            <input type="checkbox" id="target-sync" class="w-5 h-5 accent-indigo-500">
+                            <span class="text-sm font-medium">Sync All Gamepads</span>
+                        </label>
+                        <label class="flex items-center gap-3 p-3 bg-slate-800/50 rounded-lg cursor-pointer border border-slate-700 hover:border-indigo-500 transition-colors" id="phone-routing-label">
+                            <input type="checkbox" id="target-phone" class="w-5 h-5 accent-indigo-500">
+                            <span class="text-sm font-medium" id="phone-label-text">Phone Motor</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Global Modifiers -->
+                <div class="glass-panel p-6">
+                    <h3 class="text-xl font-bold mb-4 flex items-center gap-2 text-indigo-300">
+                        <i class="ph-bold ph-sliders"></i> Global Modifiers
+                    </h3>
+                    
+                    <div class="space-y-5">
+                        <div>
+                            <div class="flex justify-between mb-1">
+                                <label class="text-sm font-medium text-gray-300">Master Strength</label>
+                                <span id="strength-val" class="text-sm text-indigo-400">100%</span>
+                            </div>
+                            <input type="range" id="slider-strength" min="0" max="1" step="0.01" value="1">
+                        </div>
+                        
+                        <div>
+                            <div class="flex justify-between mb-1">
+                                <label class="text-sm font-medium text-gray-300">Pattern Tempo</label>
+                                <span id="tempo-val" class="text-sm text-indigo-400">1.0x</span>
+                            </div>
+                            <input type="range" id="slider-tempo" min="0.1" max="3" step="0.1" value="1">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- NEW: Hardware Controller Map -->
+                <div class="glass-panel p-6 border-l-4 border-indigo-500">
+                    <h3 class="text-xl font-bold mb-4 flex items-center gap-2 text-indigo-300">
+                        <i class="ph-bold ph-gamepad"></i> Hardware Shortcuts
+                    </h3>
+                    <ul class="text-sm text-gray-400 space-y-3">
+                        <li class="flex items-center gap-3">
+                            <span class="px-2 py-1 bg-slate-800 border border-slate-600 rounded text-red-400 font-bold text-xs">B / ◯</span>
+                            <span>Emergency Stop (Terminate)</span>
+                        </li>
+                        <li class="flex items-center gap-3">
+                            <span class="px-2 py-1 bg-slate-800 border border-slate-600 rounded text-green-400 font-bold text-xs">A / ✕</span>
+                            <span>Play Highlighted Pattern</span>
+                        </li>
+                        <li class="flex items-center gap-3">
+                            <span class="px-2 py-1 bg-slate-800 border border-slate-600 rounded text-white font-bold text-xs">L1 / R1</span>
+                            <span>Cycle Patterns</span>
+                        </li>
+                        <li class="flex items-center gap-3">
+                            <span class="px-2 py-1 bg-slate-800 border border-slate-600 rounded text-indigo-400 font-bold text-xs">D-Pad ↕</span>
+                            <span>Control Strong Motor</span>
+                        </li>
+                        <li class="flex items-center gap-3">
+                            <span class="px-2 py-1 bg-slate-800 border border-slate-600 rounded text-purple-400 font-bold text-xs">D-Pad ↔</span>
+                            <span>Control Weak Motor</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Right Column -->
+            <div class="space-y-6">
+                
+                <!-- Pattern Library -->
+                <div class="glass-panel p-6">
+                    <h3 class="text-xl font-bold mb-4 flex items-center gap-2 text-indigo-300">
+                        <i class="ph-bold ph-waveform"></i> Pattern Library
+                    </h3>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-3" id="pattern-container">
+                        <!-- Patterns generated by JS -->
+                    </div>
+                </div>
+
+                <!-- Custom Wave Maker / Pad -->
+                <div class="glass-panel p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xl font-bold flex items-center gap-2 text-indigo-300">
+                            <i class="ph-bold ph-hand-pointing"></i> Custom Pad
+                        </h3>
+                        <button id="btn-record" class="flex items-center gap-1 px-3 py-1 bg-slate-800 border border-red-500/50 text-red-400 hover:bg-red-500/20 rounded-lg text-sm transition">
+                            <div id="record-dot" class="w-2 h-2 rounded-full bg-red-500"></div> Record
+                        </button>
+                    </div>
+                    <p class="text-sm text-gray-400 mb-3 text-center">Drag around to control motors live</p>
+                    <div class="relative w-full aspect-square max-w-[300px] mx-auto bg-slate-800 rounded-xl border-2 border-slate-700 overflow-hidden touch-none" id="touch-pad">
+                        <!-- Grid lines -->
+                        <div class="absolute inset-0 grid grid-cols-4 grid-rows-4 pointer-events-none opacity-20">
+                            <div class="border-r border-b border-indigo-400"></div><div class="border-r border-b border-indigo-400"></div><div class="border-r border-b border-indigo-400"></div><div class="border-b border-indigo-400"></div>
+                            <div class="border-r border-b border-indigo-400"></div><div class="border-r border-b border-indigo-400"></div><div class="border-r border-b border-indigo-400"></div><div class="border-b border-indigo-400"></div>
+                            <div class="border-r border-b border-indigo-400"></div><div class="border-r border-b border-indigo-400"></div><div class="border-r border-b border-indigo-400"></div><div class="border-b border-indigo-400"></div>
+                            <div class="border-r border-indigo-400"></div><div class="border-r border-indigo-400"></div><div class="border-r border-indigo-400"></div><div></div>
+                        </div>
+                        <div class="absolute inset-y-0 left-2 flex flex-col justify-center text-xs text-gray-500 pointer-events-none -rotate-90 origin-left">Strong (Y)</div>
+                        <div class="absolute inset-x-0 bottom-1 flex justify-center text-xs text-gray-500 pointer-events-none">Weak (X)</div>
+                        
+                        <!-- Pointers -->
+                        <div id="pad-cursor" class="absolute w-8 h-8 -ml-4 -mt-4 rounded-full bg-indigo-500/50 border-2 border-indigo-400 pointer-events-none hidden" style="left: 50%; top: 50%;"></div>
+                    </div>
+                </div>
+
+                <!-- Timer / Auto-Shutoff -->
+                <div class="glass-panel p-6">
+                    <h3 class="text-xl font-bold mb-4 flex items-center gap-2 text-indigo-300">
+                        <i class="ph-bold ph-timer"></i> Sleep Timer
+                    </h3>
+                    <div class="flex gap-2">
+                        <button class="timer-btn flex-1 py-2 bg-slate-800 border border-slate-700 rounded-lg hover:bg-slate-700 text-sm" data-time="5">5m</button>
+                        <button class="timer-btn flex-1 py-2 bg-slate-800 border border-slate-700 rounded-lg hover:bg-slate-700 text-sm" data-time="15">15m</button>
+                        <button class="timer-btn flex-1 py-2 bg-slate-800 border border-slate-700 rounded-lg hover:bg-slate-700 text-sm" data-time="30">30m</button>
+                        <button class="timer-btn flex-1 py-2 bg-slate-800 border border-slate-700 rounded-lg hover:bg-slate-700 text-sm" data-time="60">1h</button>
+                    </div>
+                    <div id="timer-display" class="mt-3 text-center text-red-400 font-mono font-bold hidden">
+                        Auto-stop in: <span></span>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+<script>
+/**
+ * APP STATE & ROUTING
+ */
+const state = {
+    masterStrength: 1.0,
+    patternTempo: 1.0,
+    routing: {
+        main: true,
+        triggers: false,
+        syncAll: false,
+        phone: false
+    },
+    recording: false,
+    recordedFrames: [],
+    timerEnd: 0,
+    selectedPatternIndex: 0, // For gamepad navigation
+    manualStrong: 0,         // Track manual strong motor intensity via D-Pad
+    manualWeak: 0            // Track manual weak motor intensity via D-Pad
+};
+
+// Check for phone vibration support
+if (!('vibrate' in navigator)) {
+    document.getElementById('phone-label-text').innerText += " (Unsupported)";
+    document.getElementById('phone-label-text').classList.add('text-gray-500');
+    document.getElementById('target-phone').disabled = true;
+}
+
+// Bind UI to State
+function updateStrengthUI() {
+    document.getElementById('slider-strength').value = state.masterStrength;
+    document.getElementById('strength-val').innerText = Math.round(state.masterStrength * 100) + '%';
+}
+document.getElementById('slider-strength').addEventListener('input', e => {
+    state.masterStrength = parseFloat(e.target.value);
+    updateStrengthUI();
+});
+document.getElementById('slider-tempo').addEventListener('input', e => {
+    state.patternTempo = parseFloat(e.target.value);
+    document.getElementById('tempo-val').innerText = state.patternTempo.toFixed(1) + 'x';
+});
+
+['main', 'triggers', 'sync', 'phone'].forEach(type => {
+    document.getElementById(`target-${type}`).addEventListener('change', e => {
+        state.routing[type === 'sync' ? 'syncAll' : type] = e.target.checked;
+    });
+});
+
+/**
+ * CORE VIBRATION ENGINE
+ */
+class VibrationEngine {
+    constructor() {
+        this.activeMode = null; 
+        this.animationFrame = null;
+        this.startTime = 0;
+        this.currentPattern = null;
+
+        this.lastPhoneVib = 0;
+        this.phoneVibActive = false;
+    }
+
+    dispatchVibration(strong, weak) {
+        strong = Math.max(0, Math.min(1, strong * state.masterStrength));
+        weak = Math.max(0, Math.min(1, weak * state.masterStrength));
+
+        if (state.recording) {
+            state.recordedFrames.push({ strong, weak, time: Date.now() });
+        }
+
+        // Phone Routing
+        if (state.routing.phone && 'vibrate' in navigator) {
+            const combinedMag = Math.max(strong, weak);
+            const now = Date.now();
+            if (combinedMag > 0.05) {
+                if (now - this.lastPhoneVib > 50) {
+                    navigator.vibrate(Math.floor(combinedMag * 50)); 
+                    this.lastPhoneVib = now;
+                    this.phoneVibActive = true;
+                }
+            } else if (this.phoneVibActive) {
+                navigator.vibrate(0);
+                this.phoneVibActive = false;
+            }
+        }
+
+        // Gamepad Routing
+        const gamepads = navigator.getGamepads();
+        for (let i = 0; i < gamepads.length; i++) {
+            const gp = gamepads[i];
+            if (!gp || !gp.vibrationActuator) continue;
+            if (!state.routing.syncAll && i > 0) break;
+
+            const effectParams = {
+                duration: 50, 
+                startDelay: 0,
+                strongMagnitude: state.routing.main ? strong : 0,
+                weakMagnitude: state.routing.main ? weak : 0,
+                leftTrigger: state.routing.triggers ? strong : 0,
+                rightTrigger: state.routing.triggers ? weak : 0
+            };
+
+            try {
+                if (gp.vibrationActuator.playEffect) {
+                    gp.vibrationActuator.playEffect('dual-rumble', effectParams);
+                }
+            } catch (e) {
+                console.error("Vibration failed:", e);
+            }
+        }
+    }
+
+    stopAll() {
+        if (this.animationFrame) {
+            cancelAnimationFrame(this.animationFrame);
+            this.animationFrame = null;
+        }
+        this.activeMode = null;
+        this.dispatchVibration(0, 0); 
+        
+        if ('vibrate' in navigator) navigator.vibrate(0);
+
+        // UI Reset
+        document.querySelectorAll('.pattern-btn').forEach(btn => btn.classList.remove('active'));
+    }
+
+    startManualMode() {
+        if (this.activeMode !== 'manual') {
+            this.stopAll();
+            this.activeMode = 'manual';
+            
+            const loop = () => {
+                if (this.activeMode !== 'manual') return;
+                this.dispatchVibration(state.manualStrong, state.manualWeak);
+                this.animationFrame = requestAnimationFrame(loop);
+            };
+            this.animationFrame = requestAnimationFrame(loop);
+        }
+    }
+
+    startPattern(patternName) {
+        this.stopAll();
+        this.activeMode = 'pattern';
+        this.currentPattern = patterns[patternName];
+        this.startTime = performance.now();
+        
+        // Update UI visuals
+        const btns = document.querySelectorAll('.pattern-btn');
+        btns.forEach(b => b.classList.remove('active'));
+        const index = patternNames.indexOf(patternName);
+        if (index >= 0) btns[index].classList.add('active');
+
+        const loop = (timestamp) => {
+            if (this.activeMode !== 'pattern') return;
+            if (state.timerEnd > 0 && Date.now() > state.timerEnd) {
+                clearTimer();
+                return;
+            }
+
+            const elapsed = (timestamp - this.startTime) / 1000; 
+            const adjustedTime = elapsed * state.patternTempo;
+            
+            const [strong, weak] = this.currentPattern.fn(adjustedTime);
+            this.dispatchVibration(strong, weak);
+
+            this.animationFrame = requestAnimationFrame(loop);
+        };
+        this.animationFrame = requestAnimationFrame(loop);
+    }
+    
+    startPlayback(frames) {
+        this.stopAll();
+        this.activeMode = 'recordPlayback';
+        this.startTime = performance.now();
+        if(frames.length === 0) return;
+        
+        const totalDuration = frames[frames.length-1].time - frames[0].time;
+
+        const loop = (timestamp) => {
+            if (this.activeMode !== 'recordPlayback') return;
+            
+            let elapsedMs = (timestamp - this.startTime) * state.patternTempo;
+            elapsedMs = elapsedMs % totalDuration; // Loop it
+
+            let targetFrame = frames[0];
+            for (let i = 0; i < frames.length; i++) {
+                const relTime = frames[i].time - frames[0].time;
+                if (relTime > elapsedMs) break;
+                targetFrame = frames[i];
+            }
+
+            this.dispatchVibration(targetFrame.strong, targetFrame.weak);
+            this.animationFrame = requestAnimationFrame(loop);
+        };
+        this.animationFrame = requestAnimationFrame(loop);
+    }
+}
+
+/**
+ * PATTERNS DEFINITION
+ */
+const patterns = {
+    "Constant": { color: "blue", fn: (t) => [1, 1] },
+    "Pulse": { color: "indigo", fn: (t) => [Math.sin(t * Math.PI * 2) > 0 ? 1 : 0, Math.sin(t * Math.PI * 2) > 0 ? 1 : 0] },
+    "Heartbeat": { color: "rose", fn: (t) => { const beat = t % 1; const mag = (beat < 0.1 || (beat > 0.25 && beat < 0.35)) ? 1 : 0; return [mag, mag]; } },
+    "Wave": { color: "cyan", fn: (t) => { const val = (Math.sin(t * Math.PI) + 1) / 2; return [val, val]; } },
+    "Sawtooth": { color: "yellow", fn: (t) => { const val = t % 1; return [val, val]; } },
+    "Earthquake": { color: "orange", fn: (t) => [Math.random() > 0.2 ? 1 : 0.2, Math.random() > 0.5 ? 1 : 0.1] },
+    "Middle Strat": { color: "emerald", fn: (t) => [0.4, 0.6] },
+    "Fireworks": { color: "fuchsia", fn: (t) => { const cycle = t % 2; if (cycle < 1) return [cycle, 0]; if (cycle < 1.1) return [1, 1]; const fade = Math.max(0, 1 - ((cycle - 1.1) * 3)); return [0, fade]; } },
+    "Arch": { color: "sky", fn: (t) => { const val = Math.sin((t % 2) * (Math.PI / 2)); return [val, val]; } },
+    "Valley": { color: "purple", fn: (t) => { const val = Math.cos((t % 2) * (Math.PI / 2)); return [val, val]; } },
+    "Chirp": { color: "teal", fn: (t) => { const spd = 10 + ((t % 2) * 20); const val = (Math.sin(t * spd) + 1) / 2; return [0, val]; } },
+    "Roller Coaster": { color: "pink", fn: (t) => { const strong = (Math.sin(t * 2) + 1) / 2; const weak = (Math.cos(t * 3) + 1) / 2; return [strong, weak]; } },
+    "Randomizer": { color: "white", fn: (t) => { return [Math.random() > 0.4 ? Math.random() : 0, Math.random() > 0.4 ? Math.random() : 0]; } }
+};
+const patternNames = Object.keys(patterns);
+const engine = new VibrationEngine();
+
+
+/**
+ * UI GENERATION & EVENTS
+ */
+const container = document.getElementById('pattern-container');
+
+function updatePatternHighlight() {
+    const btns = document.querySelectorAll('.pattern-btn');
+    btns.forEach((b, index) => {
+        if (index === state.selectedPatternIndex) b.classList.add('highlighted');
+        else b.classList.remove('highlighted');
+    });
+}
+
+patternNames.forEach((name, index) => {
+    const p = patterns[name];
+    const btn = document.createElement('button');
+    btn.className = `pattern-btn flex flex-col items-center justify-center p-3 rounded-xl border border-slate-700 bg-slate-800/80 cursor-pointer overflow-hidden relative ${index === 0 ? 'highlighted' : ''}`;
+    
+    btn.onclick = () => {
+        state.selectedPatternIndex = index;
+        updatePatternHighlight();
+        engine.startPattern(name);
+    };
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 100; canvas.height = 30;
+    canvas.className = "w-full h-8 mb-2 opacity-70";
+    const ctx = canvas.getContext('2d');
+    
+    ctx.beginPath();
+    ctx.strokeStyle = p.color === 'white' ? '#fff' : `#818cf8`; 
+    ctx.lineWidth = 2;
+    for (let x = 0; x < canvas.width; x++) {
+        const t = (x / canvas.width) * 2;
+        const [strong] = p.fn(t); 
+        const y = canvas.height - (strong * canvas.height);
+        if (x === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+
+    const label = document.createElement('span');
+    label.className = "text-xs font-bold text-gray-300";
+    label.innerText = name;
+
+    btn.appendChild(canvas);
+    btn.appendChild(label);
+    container.appendChild(btn);
+});
+
+// Terminate
+document.getElementById('btn-terminate').addEventListener('click', () => {
+    engine.stopAll();
+    clearTimer();
+    state.manualStrong = 0;
+    state.manualWeak = 0;
+});
+
+// Touch Pad
+const pad = document.getElementById('touch-pad');
+const cursor = document.getElementById('pad-cursor');
+let padActive = false;
+
+function handlePad(e) {
+    if (!padActive) return;
+    e.preventDefault();
+    let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    let clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+    const rect = pad.getBoundingClientRect();
+    let x = Math.max(0, Math.min(rect.width, clientX - rect.left));
+    let y = Math.max(0, Math.min(rect.height, clientY - rect.top));
+
+    cursor.style.left = `${x}px`;
+    cursor.style.top = `${y}px`;
+
+    const weak = x / rect.width;
+    const strong = 1 - (y / rect.height);
+    engine.dispatchVibration(strong, weak);
+}
+
+pad.addEventListener('mousedown', (e) => { padActive = true; engine.stopAll(); cursor.classList.remove('hidden'); handlePad(e); });
+window.addEventListener('mouseup', () => { if(padActive){ padActive = false; cursor.classList.add('hidden'); engine.dispatchVibration(0, 0); }});
+pad.addEventListener('mousemove', handlePad);
+pad.addEventListener('touchstart', (e) => { padActive = true; engine.stopAll(); cursor.classList.remove('hidden'); handlePad(e); });
+pad.addEventListener('touchend', () => { if(padActive){ padActive = false; cursor.classList.add('hidden'); engine.dispatchVibration(0, 0); }});
+pad.addEventListener('touchmove', handlePad);
+
+
+// Record Function
+const btnRecord = document.getElementById('btn-record');
+const recordDot = document.getElementById('record-dot');
+btnRecord.addEventListener('click', () => {
+    if (state.recording) {
+        state.recording = false;
+        recordDot.classList.remove('animate-pulse');
+        btnRecord.classList.remove('bg-red-500/20');
+        btnRecord.classList.add('bg-slate-800');
+        
+        if (state.recordedFrames.length > 10) {
+            // Create a playback button dynamically
+            const btn = document.createElement('button');
+            btn.className = `pattern-btn active flex flex-col items-center justify-center p-3 rounded-xl border border-red-500/50 bg-red-900/30 cursor-pointer overflow-hidden relative`;
+            btn.innerHTML = `<i class="ph ph-play-circle text-2xl text-red-400 mb-1"></i><span class="text-xs font-bold text-gray-300">Custom Loop</span>`;
+            
+            const framesCopy = [...state.recordedFrames];
+            btn.onclick = () => {
+                document.querySelectorAll('.pattern-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                engine.startPlayback(framesCopy);
+            };
+            container.prepend(btn); // Add to the top of the patterns list
+        }
+    } else {
+        state.recording = true;
+        state.recordedFrames = [];
+        recordDot.classList.add('animate-pulse');
+        btnRecord.classList.add('bg-red-500/20');
+        btnRecord.classList.remove('bg-slate-800');
+    }
+});
+
+// Timer
+let timerInterval = null;
+const timerDisplay = document.getElementById('timer-display');
+const timerSpan = timerDisplay.querySelector('span');
+
+document.querySelectorAll('.timer-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+        const mins = parseInt(e.target.getAttribute('data-time'));
+        state.timerEnd = Date.now() + (mins * 60 * 1000);
+        timerDisplay.classList.remove('hidden');
+        document.querySelectorAll('.timer-btn').forEach(b => b.classList.remove('bg-indigo-600', 'border-indigo-500'));
+        e.target.classList.add('bg-indigo-600', 'border-indigo-500');
+
+        if(timerInterval) clearInterval(timerInterval);
+        timerInterval = setInterval(() => {
+            const remain = state.timerEnd - Date.now();
+            if (remain <= 0) { clearTimer(); engine.stopAll(); } 
+            else {
+                const m = Math.floor(remain / 60000);
+                const s = Math.floor((remain % 60000) / 1000);
+                timerSpan.innerText = `${m}:${s.toString().padStart(2, '0')}`;
+            }
+        }, 1000);
+    });
+});
+
+function clearTimer() {
+    state.timerEnd = 0;
+    if(timerInterval) clearInterval(timerInterval);
+    timerDisplay.classList.add('hidden');
+    document.querySelectorAll('.timer-btn').forEach(b => b.classList.remove('bg-indigo-600', 'border-indigo-500'));
+}
+
+
+/**
+ * BACKGROUND INPUT POLLER (GAMEPAD CONTROLS)
+ */
+let lastButtonStates = {};
+
+function pollGamepadSystem() {
+    const gamepads = navigator.getGamepads();
+    let connected = 0;
+
+    for (let i = 0; i < gamepads.length; i++) {
+        const gp = gamepads[i];
+        if (!gp) continue;
+        
+        if (gp.vibrationActuator) connected++;
+        if (!lastButtonStates[i]) lastButtonStates[i] = [];
+
+        // Check for specific button presses (Edge detection: pressed now, not pressed last frame)
+        const pressed = (btnIndex) => gp.buttons[btnIndex] && gp.buttons[btnIndex].pressed;
+        const justPressed = (btnIndex) => pressed(btnIndex) && !lastButtonStates[i][btnIndex];
+
+        // 1 (B / Circle) - Terminate
+        if (justPressed(1)) {
+            engine.stopAll();
+            clearTimer();
+        }
+
+        // 0 (A / Cross) - Play highlighted pattern
+        if (justPressed(0)) {
+            const selectedName = patternNames[state.selectedPatternIndex];
+            engine.startPattern(selectedName);
+        }
+
+        // 4 (L1) - Previous Pattern
+        if (justPressed(4)) {
+            state.selectedPatternIndex--;
+            if (state.selectedPatternIndex < 0) state.selectedPatternIndex = patternNames.length - 1;
+            updatePatternHighlight();
+            // If already playing a pattern, instantly switch it
+            if (engine.activeMode === 'pattern') engine.startPattern(patternNames[state.selectedPatternIndex]);
+        }
+
+        // 5 (R1) - Next Pattern
+        if (justPressed(5)) {
+            state.selectedPatternIndex++;
+            if (state.selectedPatternIndex >= patternNames.length) state.selectedPatternIndex = 0;
+            updatePatternHighlight();
+            if (engine.activeMode === 'pattern') engine.startPattern(patternNames[state.selectedPatternIndex]);
+        }
+
+        // --- Manual Control via D-Pad ---
+        let manualChanged = false;
+        
+        // 12 (D-Pad Up) - Increase Strong Motor
+        if (pressed(12)) {
+            state.manualStrong = Math.min(1.0, state.manualStrong + 0.02);
+            manualChanged = true;
+        }
+
+        // 13 (D-Pad Down) - Decrease Strong Motor
+        if (pressed(13)) {
+            state.manualStrong = Math.max(0.0, state.manualStrong - 0.02);
+            manualChanged = true;
+        }
+        
+        // 15 (D-Pad Right) - Increase Weak Motor
+        if (pressed(15)) {
+            state.manualWeak = Math.min(1.0, state.manualWeak + 0.02);
+            manualChanged = true;
+        }
+        
+        // 14 (D-Pad Left) - Decrease Weak Motor
+        if (pressed(14)) {
+            state.manualWeak = Math.max(0.0, state.manualWeak - 0.02);
+            manualChanged = true;
+        }
+
+        if (manualChanged) {
+            engine.startManualMode();
+        } else if (engine.activeMode === 'manual' && !pressed(12) && !pressed(13) && !pressed(14) && !pressed(15)) {
+            // Keep vibrating at the set manual level until a pattern is played or terminate is pressed.
+            // If you want it to stop when the d-pad is released, uncomment the lines below:
+            // engine.stopAll();
+            // state.manualStrong = 0;
+            // state.manualWeak = 0;
+        }
+
+        // Save states for next frame
+        for(let b = 0; b < gp.buttons.length; b++) {
+            lastButtonStates[i][b] = pressed(b);
+        }
+    }
+
+    // Update Status UI
+    const badge = document.getElementById('status-badge');
+    const dot = document.getElementById('status-dot');
+    const txt = document.getElementById('status-text');
+
+    if (connected > 0) {
+        badge.classList.remove('bg-slate-800', 'border-slate-700');
+        badge.classList.add('bg-green-900/30', 'border-green-500/50');
+        dot.classList.remove('bg-red-500');
+        dot.classList.add('bg-green-400');
+        txt.innerText = `${connected} Controller(s) Connected & Ready`;
+        txt.classList.add('text-green-300');
+    } else {
+        badge.classList.add('bg-slate-800', 'border-slate-700');
+        badge.classList.remove('bg-green-900/30', 'border-green-500/50');
+        dot.classList.add('bg-red-500');
+        dot.classList.remove('bg-green-400');
+        txt.innerText = `Press any button on controller`;
+        txt.classList.remove('text-green-300');
+    }
+
+    requestAnimationFrame(pollGamepadSystem);
+}
+
+// Start background input poller
+requestAnimationFrame(pollGamepadSystem);
+
+</script>
+</body>
+</html>

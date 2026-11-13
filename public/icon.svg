@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <rect width="512" height="512" rx="112" fill="#0C0D10"/>
+  <rect x="24" y="24" width="464" height="464" rx="88" stroke="#242731" stroke-width="4"/>
+  <!-- Outer precision dial ticks -->
+  <circle cx="256" cy="256" r="176" stroke="#1E212B" stroke-width="6" stroke-dasharray="8 16"/>
+  <!-- Strong Motor Ring (Amber) -->
+  <circle cx="256" cy="256" r="142" stroke="#FFB800" stroke-width="14" stroke-linecap="round" stroke-dasharray="560 900" transform="rotate(-135 256 256)"/>
+  <!-- Weak Motor Ring (Cyan) -->
+  <circle cx="256" cy="256" r="110" stroke="#00E5FF" stroke-width="10" stroke-linecap="round" stroke-dasharray="440 700" transform="rotate(-110 256 256)"/>
+  <!-- Tactile Waveform -->
+  <path d="M126 256H168L192 184L226 328L258 148L290 344L320 212L344 256H386" stroke="#FF5500" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Hardware Registration Dots -->
+  <circle cx="72" cy="72" r="8" fill="#FF5500"/>
+  <circle cx="440" cy="72" r="8" fill="#2E3340"/>
+  <circle cx="72" cy="440" r="8" fill="#2E3340"/>
+  <circle cx="440" cy="440" r="8" fill="#2E3340"/>
+</svg>

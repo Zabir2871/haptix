@@ -1,6 +1,6 @@
 {
-  "name": "Haptix Tactile Telemetry & Haptic Synthesizer",
-  "description": "Precision WebGamepad, WebHID DualSense/Xbox Impulse Trigger, and multi-actuator haptic synthesizer with real-time XY vector control, pattern sequencing, and full D-Pad navigation.",
+  "name": "Haptics Pro — Tactile Motor Studio",
+  "description": "Precision multi-motor gamepad and mobile haptic controller with live dual-channel oscilloscope, XY touch pad, 16-step sequencer, and full offline PWA support.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
